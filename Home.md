@@ -1,5 +1,7 @@
 ---
+layout: default
 title: Home
+---
 description: Central hub for the documentation of my PhD research in Digital Humanities focusing on the reception of the most ancient Greek textual depictions of Herakles in video games.
 tags:
   - home
