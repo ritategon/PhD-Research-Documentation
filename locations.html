@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geographical Locations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h2 { color: #333; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+  th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+  th { cursor: pointer; background-color: #f2f2f2; position: relative; }
+  th:hover { background-color: #e6e6e6; }
+  th::after { content: "⇵"; margin-left: 5px; font-size: 12px; opacity: 0.5; }
+  tr:nth-child(even) { background-color: #f9f9f9; }
+  tr:hover { background-color: #f1f1f1; cursor: pointer; }
+  
+  .controls { display: flex; margin-bottom: 15px; gap: 10px; flex-wrap: wrap; }
+  .search { padding: 8px; flex-grow: 1; border: 1px solid #ddd; border-radius: 4px; }
+  .filter-select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+  
+  #map { height: 500px; width: 100%; margin-bottom: 20px; display: none; border-radius: 5px; }
+  
+  .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; 
+           background-color: rgba(0,0,0,0.4); }
+  .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px;
+                  border-radius: 5px; width: 80%; max-width: 700px; position: relative; }
+  .close { position: absolute; right: 15px; top: 10px; color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+  .close:hover { color: black; }
+  
+  .controls-toggle { display: flex; margin-bottom: 15px; }
+  .view-btn { padding: 8px 15px; cursor: pointer; background: #f2f2f2; border: none; border-radius: 4px; margin-right: 10px; }
+  .view-btn.active { background: #4CAF50; color: white; }
+  
+  .location-details { margin-top: 20px; }
+  .location-details h3 { margin-bottom: 10px; }
+  .location-details p { margin: 5px 0; }
+  
+  @media (max-width: 768px) {
+    .controls { flex-direction: column; }
+    .search, .filter-select { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Geographical Locations</h2>
+  
+  <div class="controls-toggle">
+    <button class="view-btn active" onclick="toggleView('table')">Table View</button>
+    <button class="view-btn" onclick="toggleView('map')">Map View</button>
+  </div>
+  
+  <div class="controls">
+    <input type="text" class="search" id="searchInput" placeholder="Search for locations..." onkeyup="filterTable()">
+    <select class="filter-select" id="certaintyFilter" onchange="filterTable()">
+      <option value="">All Certainties</option>
+      <option value="Confirmed">Confirmed</option>
+      <option value="Probable">Probable</option>
+      <option value="Speculative">Speculative</option>
+      <option value="Mythical">Mythical</option>
+    </select>
+  </div>
+  
+  <div id="map"></div>
+  
+  <table id="geoTable" data-sort-order="asc">
+    <thead>
+      <tr>
+        <th onclick="sortTable(0)">Name</th>
+        <th onclick="sortTable(1)">Description</th>
+        <th onclick="sortTable(2)">Certainty</th>
+        <th onclick="sortTable(3)">Coordinates</th>
+      </tr>
+    </thead>
+    <tbody>
+<tr><td>Abas, Mount</td><td>Mountain in northwestern Africa</td><td>Uncertain</td><td>33.6753, -4.9717</td></tr>
+<tr><td>Aeaea</td><td>Island of Dawn. Home of Circe</td><td>Mythical</td><td>None, None</td></tr>
+<tr><td>Arcton</td><td>Town on south coast of the Sea of Marmara</td><td>Approximate</td><td>40.5912, 28.968</td></tr>
+<tr><td>Athens</td><td>Major Greek city-state. 'Cradle of Democracy'</td><td>Confirmed</td><td>37.9838, 23.7275</td></tr>
+<tr><td>Aventine Forest</td><td>A woods in Italy</td><td>Confirmed</td><td>41.8822, 12.4825</td></tr>
+<tr><td>Bebrycos</td><td>Island in the Sea of Marmara</td><td>Approximate</td><td>40.696, 29.3528</td></tr>
+<tr><td>Cnossus</td><td>Capital of Crete. Minos had his palace here</td><td>Confirmed</td><td>35.298, 25.1639</td></tr>
+<tr><td>Colchis</td><td>City on east coast of the Black Sea</td><td>Confirmed</td><td>42.19, 41.68</td></tr>
+<tr><td>Crete</td><td>Large island south of Greece</td><td>Confirmed</td><td>35.2401, 24.8093</td></tr>
+<tr><td>Delphi</td><td>Site of cleft in the ground from which vision-giving vapors arose</td><td>Confirmed</td><td>38.4824, 22.501</td></tr>
+<tr><td>Elis</td><td>Town where most training for the Olympics took place</td><td>Confirmed</td><td>37.9147, 21.3716</td></tr>
+<tr><td>Elysium</td><td>Realm of peaceful afterlife far to the West</td><td>Mythical</td><td>None, None</td></tr>
+<tr><td>Epidaurus</td><td>Peloponnesian town</td><td>Unknown</td><td>None, None</td></tr>
+<tr><td>Erytheia</td><td>An island beyond the ocean stream</td><td>Mythical</td><td>None, None</td></tr>
+<tr><td>Iolcus</td><td>Seaport home of Jason</td><td>Unknown</td><td>None, None</td></tr>
+<tr><td>Ithaca</td><td>Island off northwestern coast of Greece. Home of Odysseus and Penelope</td><td>Confirmed</td><td>38.36, 20.71</td></tr>
+<tr><td>Laureion</td><td>Mining region in Attica, associated with silver production</td><td>Confirmed</td><td>37.7145, 24.0565</td></tr>
+<tr><td>Libya</td><td>Country in northern Africa</td><td>Approximate</td><td>27, 17</td></tr>
+<tr><td>Liguria</td><td>A country near present-day Marseilles</td><td>Unknown</td><td>44.4111, 8.9327</td></tr>
+<tr><td>Mariandyne</td><td>City on southern coast of the Black Sea</td><td>Approximate</td><td>41.4572, 31.7894</td></tr>
+<tr><td>Marmara, Sea of</td><td>Located north of present-day Turkey, between the Black Sea and the Mediterranean</td><td>Confirmed</td><td>40.6729, 28.3158</td></tr>
+<tr><td>Megalopolis</td><td>Large Spartan city</td><td>Unknown</td><td>None, None</td></tr>
+<tr><td>Olympus, Mount</td><td>Home of the gods</td><td>Confirmed</td><td>40.0859, 22.3583</td></tr>
+<tr><td>Pelion, Mount</td><td>Home of Cheiron the centaur</td><td>Unknown</td><td>None, None</td></tr>
+<tr><td>Peloponnesus</td><td>A large island-peninsula connected to mainland Greece by a narrow isthmus</td><td>Confirmed</td><td>37.508, 22.3726</td></tr>
+
+    </tbody>
+  </table>
+</div>
+
+<div id="locationModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <div id="locationDetails" class="location-details"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+<script>
+// Store all location data for map display
+const locationData = [];
+
+// Initialize map
+let map;
+function initMap() {
+  map = L.map('map').setView([37.9838, 23.7275], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+  
+  // Add markers for each location
+  locationData.forEach(location => {
+    if (location.lat && location.lon) {
+      const marker = L.marker([location.lat, location.lon]).addTo(map);
+      marker.bindPopup(`<b>${location.name}</b><br>${location.description}`);
+      marker.on('click', function() {
+        showLocationDetails(location);
+      });
+    }
+  });
+}
+
+// Sorting function
+function sortTable(n) {
+  const table = document.getElementById("geoTable");
+  const rows = Array.from(table.rows).slice(1);
+  const ascending = table.dataset.sortOrder !== "asc";
+  
+  rows.sort((a, b) => {
+    return ascending 
+      ? a.cells[n].innerText.localeCompare(b.cells[n].innerText) 
+      : b.cells[n].innerText.localeCompare(a.cells[n].innerText);
+  });
+  
+  rows.forEach(row => table.tBodies[0].appendChild(row));
+  table.dataset.sortOrder = ascending ? "asc" : "desc";
+  
+  // Update sort indicators
+  document.querySelectorAll('th').forEach((th, index) => {
+    if (index === n) {
+      th.classList.add('sorted');
+      th.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+    } else {
+      th.classList.remove('sorted');
+      th.removeAttribute('aria-sort');
+    }
+  });
+}
+
+// Filter table based on search and dropdown
+function filterTable() {
+  const input = document.getElementById("searchInput");
+  const filter = input.value.toUpperCase();
+  const certaintyFilter = document.getElementById("certaintyFilter").value;
+  const table = document.getElementById("geoTable");
+  const rows = table.getElementsByTagName("tr");
+  
+  for (let i = 1; i < rows.length; i++) {
+    const nameCol = rows[i].getElementsByTagName("td")[0];
+    const descCol = rows[i].getElementsByTagName("td")[1];
+    const certaintyCol = rows[i].getElementsByTagName("td")[2];
+    
+    if (nameCol && descCol && certaintyCol) {
+      const nameText = nameCol.textContent || nameCol.innerText;
+      const descText = descCol.textContent || descCol.innerText;
+      const certaintyText = certaintyCol.textContent || certaintyCol.innerText;
+      
+      const matchesSearch = nameText.toUpperCase().indexOf(filter) > -1 || 
+                           descText.toUpperCase().indexOf(filter) > -1;
+      const matchesCertainty = certaintyFilter === "" || 
+                              certaintyText.indexOf(certaintyFilter) > -1;
+      
+      rows[i].style.display = matchesSearch && matchesCertainty ? "" : "none";
+    }
+  }
+}
+
+// Toggle between table and map views
+function toggleView(view) {
+  const tableView = document.getElementById("geoTable");
+  const mapView = document.getElementById("map");
+  const tableBtns = document.querySelectorAll(".view-btn");
+  
+  tableBtns.forEach(btn => btn.classList.remove("active"));
+  
+  if (view === "map") {
+    tableView.style.display = "none";
+    mapView.style.display = "block";
+    tableBtns[1].classList.add("active");
+    if (!map) {
+      initMap();
+    }
+  } else {
+    tableView.style.display = "table";
+    mapView.style.display = "none";
+    tableBtns[0].classList.add("active");
+  }
+}
+
+// Show location details in modal
+function showLocationDetails(location) {
+  const modal = document.getElementById("locationModal");
+  const details = document.getElementById("locationDetails");
+  
+  details.innerHTML = `
+    <h3>${location.name}</h3>
+    <p><strong>Description:</strong> ${location.description}</p>
+    <p><strong>Certainty:</strong> ${location.certainty}</p>
+    <p><strong>Coordinates:</strong> ${location.lat}, ${location.lon}</p>
+    ${location.pleiades_id ? `<p><strong>Pleiades ID:</strong> <a href="https://pleiades.stoa.org/places/${location.pleiades_id}" target="_blank">${location.pleiades_id}</a></p>` : ''}
+  `;
+  
+  modal.style.display = "block";
+}
+
+// Close modal
+function closeModal() {
+  document.getElementById("locationModal").style.display = "none";
+}
+
+// Add row click event
+document.querySelectorAll("#geoTable tbody tr").forEach(row => {
+  row.addEventListener("click", function() {
+    const cells = this.getElementsByTagName("td");
+    const name = cells[0].textContent;
+    const description = cells[1].textContent;
+    const certainty = cells[2].textContent;
+    const coords = cells[3].textContent.split(',');
+    const lat = parseFloat(coords[0].trim());
+    const lon = parseFloat(coords[1].trim());
+    
+    showLocationDetails({
+      name: name,
+      description: description,
+      certainty: certainty,
+      lat: lat,
+      lon: lon
+    });
+  });
+});
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById("locationModal");
+  if (event.target == modal) {
+    modal.style.display = "none";
+  }
+}
+
+// Initialize with table view
+document.addEventListener("DOMContentLoaded", function() {
+  toggleView("table");
+});
+</script>
+</body>
+</html>
+<script>
+// Location data for the map
+locationData.push({
+                        name: "Abas, Mount",
+                        description: "Mountain in northwestern Africa",
+                        certainty: "Uncertain",
+                        lat: 33.6753,
+                        lon: -4.9717,
+                        pleiades_id: ""
+                    }, {
+                        name: "Aeaea",
+                        description: "Island of Dawn. Home of Circe",
+                        certainty: "Mythical",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Arcton",
+                        description: "Town on south coast of the Sea of Marmara",
+                        certainty: "Approximate",
+                        lat: 40.5912,
+                        lon: 28.968,
+                        pleiades_id: ""
+                    }, {
+                        name: "Athens",
+                        description: "Major Greek city-state. 'Cradle of Democracy'",
+                        certainty: "Confirmed",
+                        lat: 37.9838,
+                        lon: 23.7275,
+                        pleiades_id: "579885"
+                    }, {
+                        name: "Aventine Forest",
+                        description: "A woods in Italy",
+                        certainty: "Confirmed",
+                        lat: 41.8822,
+                        lon: 12.4825,
+                        pleiades_id: "423025"
+                    }, {
+                        name: "Bebrycos",
+                        description: "Island in the Sea of Marmara",
+                        certainty: "Approximate",
+                        lat: 40.696,
+                        lon: 29.3528,
+                        pleiades_id: "511311"
+                    }, {
+                        name: "Cnossus",
+                        description: "Capital of Crete. Minos had his palace here",
+                        certainty: "Confirmed",
+                        lat: 35.298,
+                        lon: 25.1639,
+                        pleiades_id: "589806"
+                    }, {
+                        name: "Colchis",
+                        description: "City on east coast of the Black Sea",
+                        certainty: "Confirmed",
+                        lat: 42.19,
+                        lon: 41.68,
+                        pleiades_id: "857147"
+                    }, {
+                        name: "Crete",
+                        description: "Large island south of Greece",
+                        certainty: "Confirmed",
+                        lat: 35.2401,
+                        lon: 24.8093,
+                        pleiades_id: "589748"
+                    }, {
+                        name: "Delphi",
+                        description: "Site of cleft in the ground from which vision-giving vapors arose",
+                        certainty: "Confirmed",
+                        lat: 38.4824,
+                        lon: 22.501,
+                        pleiades_id: "540726"
+                    }, {
+                        name: "Elis",
+                        description: "Town where most training for the Olympics took place",
+                        certainty: "Confirmed",
+                        lat: 37.9147,
+                        lon: 21.3716,
+                        pleiades_id: "570220"
+                    }, {
+                        name: "Elysium",
+                        description: "Realm of peaceful afterlife far to the West",
+                        certainty: "Mythical",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Epidaurus",
+                        description: "Peloponnesian town",
+                        certainty: "Unknown",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Erytheia",
+                        description: "An island beyond the ocean stream",
+                        certainty: "Mythical",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Iolcus",
+                        description: "Seaport home of Jason",
+                        certainty: "Unknown",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Ithaca",
+                        description: "Island off northwestern coast of Greece. Home of Odysseus and Penelope",
+                        certainty: "Confirmed",
+                        lat: 38.36,
+                        lon: 20.71,
+                        pleiades_id: "530906"
+                    }, {
+                        name: "Laureion",
+                        description: "Mining region in Attica, associated with silver production",
+                        certainty: "Confirmed",
+                        lat: 37.7145,
+                        lon: 24.0565,
+                        pleiades_id: "579987"
+                    }, {
+                        name: "Libya",
+                        description: "Country in northern Africa",
+                        certainty: "Approximate",
+                        lat: 27,
+                        lon: 17,
+                        pleiades_id: "994060"
+                    }, {
+                        name: "Liguria",
+                        description: "A country near present-day Marseilles",
+                        certainty: "Unknown",
+                        lat: 44.4111,
+                        lon: 8.9327,
+                        pleiades_id: ""
+                    }, {
+                        name: "Mariandyne",
+                        description: "City on southern coast of the Black Sea",
+                        certainty: "Approximate",
+                        lat: 41.4572,
+                        lon: 31.7894,
+                        pleiades_id: "853574"
+                    }, {
+                        name: "Marmara, Sea of",
+                        description: "Located north of present-day Turkey, between the Black Sea and the Mediterranean",
+                        certainty: "Confirmed",
+                        lat: 40.6729,
+                        lon: 28.3158,
+                        pleiades_id: "511418"
+                    }, {
+                        name: "Megalopolis",
+                        description: "Large Spartan city",
+                        certainty: "Unknown",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Olympus, Mount",
+                        description: "Home of the gods",
+                        certainty: "Confirmed",
+                        lat: 40.0859,
+                        lon: 22.3583,
+                        pleiades_id: "540962"
+                    }, {
+                        name: "Pelion, Mount",
+                        description: "Home of Cheiron the centaur",
+                        certainty: "Unknown",
+                        lat: None,
+                        lon: None,
+                        pleiades_id: ""
+                    }, {
+                        name: "Peloponnesus",
+                        description: "A large island-peninsula connected to mainland Greece by a narrow isthmus",
+                        certainty: "Confirmed",
+                        lat: 37.508,
+                        lon: 22.3726,
+                        pleiades_id: "570598"
+                    });
+</script>
