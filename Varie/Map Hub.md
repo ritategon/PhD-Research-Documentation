@@ -1,6 +1,7 @@
 ---
-"up: home"
-title: Map Hub
+title: "My Map Hub"
+layout: default
+description: "A description of the page"
 ---
 # Geographical Locations Database
 
